@@ -23,7 +23,7 @@ jobs:
           deno-version: v2.x
 
       - name: Install dependencies
-        run: deno cache main.ts
+        run: deno install
 
       - name: Deploy to Deno Deploy
         uses: denoland/deployctl@v1
