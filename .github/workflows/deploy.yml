@@ -30,6 +30,3 @@ jobs:
         with:
           project: watchly-backend
           entrypoint: main.ts
-          env: |
-            ENV_VAR1=${{ secrets.ENV_VAR1 }}
-            ENV_VAR2=${{ secrets.ENV_VAR2 }} 
