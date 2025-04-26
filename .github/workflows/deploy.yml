@@ -29,4 +29,7 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: watchly-backend
-          entrypoint: main.ts 
+          entrypoint: main.ts
+          env: |
+            ENV_VAR1=${{ secrets.ENV_VAR1 }}
+            ENV_VAR2=${{ secrets.ENV_VAR2 }} 

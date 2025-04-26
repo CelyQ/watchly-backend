@@ -5,6 +5,3 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(Deno.env.toObject());
-export const validateEnv = () => {
-  envSchema.parse(Deno.env.toObject());
-};

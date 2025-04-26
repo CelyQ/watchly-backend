@@ -1,6 +1,4 @@
 import { Hono } from "hono";
-import "jsr:@std/dotenv/load";
-
 import { env } from "@/env.ts";
 
 export const movie = new Hono();
