@@ -22,7 +22,7 @@ export class RapidAPIClient {
    */
   async imdbSearch(
     query: string,
-    type: "MOVIE" | "SERIES",
+    type: "MOVIE" | "TV",
     cacheKey?: string,
   ): Promise<RapidAPIIMDBSearchResponseDataEntity | null> {
     if (cacheKey) {
