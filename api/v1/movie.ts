@@ -1,23 +1,28 @@
 import { Hono } from "hono";
-import { env } from "@/env.ts";
+import { RapidAPIClient } from "@/lib/rapidapi.ts";
+import { TMDBClient } from "@/lib/tmdb.ts";
 
 export const movie = new Hono();
 
-const TMDB_TRENDING_URL =
-  `https://api.themoviedb.org/3/trending/movie/day?api_key=${env.TMDB_API_KEY}`;
-
 movie.get("/trending", async (c) => {
   try {
-    const response = await fetch(TMDB_TRENDING_URL);
+    const tmdbClient = new TMDBClient();
+    const rapidAPIClient = new RapidAPIClient();
 
-    if (!response.ok) {
-      return c.json({ error: "Failed to fetch trending movies." }, 500);
-    }
+    const trending = await tmdbClient.getTrendingMovies();
 
-    const data = await response.json();
+    const movies = await Promise.all(
+      trending.map((trend) => {
+        return rapidAPIClient.imdbSearch(
+          trend.title,
+          "MOVIE",
+          trend.id.toString(),
+        );
+      }),
+    );
 
     // Return just the list of movies or whatever you want from the data
-    return c.json({ trending: data.results });
+    return c.json({ movies });
   } catch (error) {
     console.error("Error fetching trending movies:", error);
     return c.json({ error: "Internal server error." }, 500);
