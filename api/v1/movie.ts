@@ -24,7 +24,9 @@ movie.get("/trending", async (c) => {
     // Return just the list of movies or whatever you want from the data
     return c.json({ movies });
   } catch (error) {
-    console.error("Error fetching trending movies:", error);
+    if (error instanceof Error && error.message === "Rate limit exceeded.") {
+      return c.json({ error: "Rate limit exceeded." }, 429);
+    }
     return c.json({ error: "Internal server error." }, 500);
   }
 });

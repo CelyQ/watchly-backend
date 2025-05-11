@@ -47,13 +47,16 @@ export class RapidAPIClient {
       },
     });
 
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded.");
+    }
+
     if (!response.ok) {
       console.error(await response.text());
       throw new Error("Failed to fetch data from RapidAPI");
     }
 
     const { data } = (await response.json()) as RapidAPIIMDBSearchResponseData;
-    console.log({ data });
     const entity = data.mainSearch.edges[0].node.entity;
 
     if (cacheKey) {

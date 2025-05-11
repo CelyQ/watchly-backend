@@ -14,17 +14,19 @@ tv.get("/trending", async (c) => {
     const tvshows = await Promise.all(
       trending.map((trend) => {
         return rapidAPIClient.imdbSearch(
-          trend.title,
+          trend.name,
           "TV",
           trend.id.toString(),
         );
       }),
     );
 
-    // Return just the list of movies or whatever you want from the data
-    return c.json({ tvshows });
+    return c.json({ tvshows }, 200);
   } catch (error) {
-    console.error("Error fetching trending movies:", error);
+    if (error instanceof Error && error.message === "Rate limit exceeded.") {
+      return c.json({ error: "Rate limit exceeded." }, 429);
+    }
+
     return c.json({ error: "Internal server error." }, 500);
   }
 });

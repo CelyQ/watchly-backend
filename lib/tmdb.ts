@@ -1,6 +1,8 @@
 import type {
-  TMDBTrending,
-  TMDBTrendingResponseData,
+  TMDBMovieTrending,
+  TMDBTrendingMovieResponseData,
+  TMDBTrendingTVResponseData,
+  TMDBTVTrending,
 } from "@/types/tmdb-trending.type.ts";
 import { redis } from "@/lib/redis.ts";
 
@@ -13,7 +15,7 @@ export class TMDBClient {
 
   async getTrendingMovies() {
     const cache = (await redis.get("tmdb_trending_movies")) as
-      | TMDBTrending[]
+      | TMDBMovieTrending[]
       | null
       | undefined;
 
@@ -29,7 +31,8 @@ export class TMDBClient {
       throw new Error("Failed to fetch trending movies.");
     }
 
-    const responseData = (await response.json()) as TMDBTrendingResponseData;
+    const responseData =
+      (await response.json()) as TMDBTrendingMovieResponseData;
 
     await redis.set(
       "tmdb_trending_movies",
@@ -44,7 +47,7 @@ export class TMDBClient {
 
   async getTrendingTV() {
     const cache = (await redis.get("tmdb_trending_tv")) as
-      | TMDBTrending[]
+      | TMDBTVTrending[]
       | null
       | undefined;
 
@@ -60,8 +63,7 @@ export class TMDBClient {
       throw new Error("Failed to fetch trending tv.");
     }
 
-    const responseData = (await response.json()) as TMDBTrendingResponseData;
-    console.log({ responseData });
+    const responseData = (await response.json()) as TMDBTrendingTVResponseData;
 
     await redis.set(
       "tmdb_trending_tv",
