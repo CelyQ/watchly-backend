@@ -1,6 +1,8 @@
 import type {
+  RapidAPIIMDBOverviewResponseData,
   RapidAPIIMDBSearchResponseData,
   RapidAPIIMDBSearchResponseDataEntity,
+  RapidAPIIMDBTitleGetBaseResponseData,
 } from "@/types/rapidapi.type.ts";
 import { redis } from "@/lib/redis.ts";
 
@@ -69,5 +71,56 @@ export class RapidAPIClient {
       );
     }
     return entity;
+  }
+
+  async imdbSearchByImdbId(imdbId: string) {
+    const getBaseUrl = new URL(
+      "https://imdb232.p.rapidapi.com/api/title/get-base",
+    );
+    getBaseUrl.searchParams.set("tt", imdbId);
+
+    const titlePromise = fetch(getBaseUrl, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": this.apiKey,
+        "x-rapidapi-host": this.apiHost,
+      },
+    }).then(async (res) => {
+      const { data } =
+        (await res.json()) as RapidAPIIMDBTitleGetBaseResponseData;
+      return data.title;
+    }).catch((err) => {
+      console.error(err);
+      throw new Error("Failed to fetch data from RapidAPI");
+    });
+
+    const overviewUrl = new URL(
+      "https://imdb232.p.rapidapi.com/api/title/get-overview",
+    );
+    overviewUrl.searchParams.set("tt", imdbId);
+
+    const overviewPromise = fetch(overviewUrl, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": this.apiKey,
+        "x-rapidapi-host": this.apiHost,
+      },
+    }).then(async (res) => {
+      const { data } = (await res.json()) as RapidAPIIMDBOverviewResponseData;
+      return data.title;
+    }).catch((err) => {
+      console.error(err);
+      throw new Error("Failed to fetch data from RapidAPI");
+    });
+
+    const [title, overview] = await Promise.all([
+      titlePromise,
+      overviewPromise,
+    ]);
+
+    return {
+      title,
+      overview,
+    };
   }
 }
