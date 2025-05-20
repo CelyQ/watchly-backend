@@ -3,11 +3,17 @@
     "@/": "./",
     "@std/dotenv": "jsr:@std/dotenv@^0.225.3",
     "hono": "jsr:@hono/hono@^4.7.6",
-    "redis": "npm:redis@^4.6.13"
+    "redis": "npm:redis@^4.6.13",
+    "drizzle-orm": "npm:drizzle-orm@0.29.3",
+    "drizzle-kit": "npm:drizzle-kit@0.20.14",
+    "postgres": "npm:postgres@3.4.3"
   },
   "tasks": {
     "start": "deno run --allow-net --allow-read --allow-env main.ts",
-    "dev": "deno run --allow-net --allow-read --allow-env --watch main.ts"
+    "dev": "deno run --allow-net --allow-read --allow-env --watch main.ts",
+    "db:generate": "deno run -A npm:drizzle-kit generate:pg",
+    "db:push": "deno run -A npm:drizzle-kit push:pg",
+    "db:studio": "deno run -A npm:drizzle-kit studio"
   },
   "compilerOptions": {
     "jsx": "precompile",

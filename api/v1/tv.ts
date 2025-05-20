@@ -15,7 +15,7 @@ tv.get("/trending", async (c) => {
     const tvshows = await Promise.all(
       trending.map((trend) => {
         return rapidAPIClient.imdbSearch(
-          trend.name,
+          trend.original_name,
           "TV",
           trend.id.toString(),
         );
@@ -23,7 +23,6 @@ tv.get("/trending", async (c) => {
     );
 
     console.log({ tvshows });
-
     return c.json({ tvshows }, 200);
   } catch (error) {
     console.log({ error });
