@@ -4,6 +4,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -29,7 +30,9 @@ export const movies = pgTable("movies", {
   userId: varchar("user_id", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userMovieUnique: unique().on(table.userId, table.imdbId),
+}));
 
 // TV Shows table with Clerk user reference
 export const tvShows = pgTable("tv_shows", {

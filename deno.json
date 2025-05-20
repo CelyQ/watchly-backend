@@ -6,7 +6,7 @@
     "redis": "npm:redis@^4.6.13",
     "drizzle-orm": "npm:drizzle-orm@0.29.3",
     "drizzle-kit": "npm:drizzle-kit@0.20.14",
-    "postgres": "npm:postgres@3.4.3"
+    "@neondatabase/serverless": "npm:@neondatabase/serverless@0.7.2"
   },
   "tasks": {
     "start": "deno run --allow-net --allow-read --allow-env main.ts",

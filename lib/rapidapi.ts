@@ -62,7 +62,6 @@ export class RapidAPIClient {
 
     const { data } = (await response.json()) as RapidAPIIMDBSearchResponseData;
     const edges = data.mainSearch.edges;
-    console.log({ edges });
     const entity = edges?.[0]?.node?.entity;
 
     if (cacheKey) {
