@@ -10,6 +10,7 @@ tv.get("/trending", async (c) => {
     const rapidAPIClient = new RapidAPIClient();
 
     const trending = await tmdbClient.getTrendingTV();
+    console.log({ trendingTv: trending });
 
     const tvshows = await Promise.all(
       trending.map((trend) => {
@@ -21,8 +22,11 @@ tv.get("/trending", async (c) => {
       }),
     );
 
+    console.log({ tvshows });
+
     return c.json({ tvshows }, 200);
   } catch (error) {
+    console.log({ error });
     if (error instanceof Error && error.message === "Rate limit exceeded.") {
       return c.json({ error: "Rate limit exceeded." }, 429);
     }
