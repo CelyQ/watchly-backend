@@ -1,3 +1,3 @@
 ```
-deno task start
+deno task dev
 ```
