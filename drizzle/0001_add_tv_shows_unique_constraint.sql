@@ -1,0 +1,1 @@
+ALTER TABLE "tv_shows" ADD CONSTRAINT "user_tv_show_unique" UNIQUE ("user_id", "imdb_id"); 

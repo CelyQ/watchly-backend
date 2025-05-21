@@ -43,4 +43,6 @@ export const tvShows = pgTable("tv_shows", {
   userId: varchar("user_id", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userTVShowUnique: unique().on(table.userId, table.imdbId),
+}));

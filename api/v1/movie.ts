@@ -7,7 +7,7 @@ import { db } from "@/db/index.ts";
 import { redis } from "@/lib/redis.ts";
 import type { RapidAPIIMDBSearchResponseDataEntity } from "@/types/rapidapi.type.ts";
 import { movies } from "@/db/schema.ts";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 export const movie = new Hono<AuthContext>();
 
@@ -43,8 +43,19 @@ movie.post("/save", async (c) => {
     const userId = c.get("userId");
     const { imdbId, status } = z.object({
       imdbId: z.string(),
-      status: z.enum(movies.status.enumValues),
+      status: z.enum(movies.status.enumValues).nullable(),
     }).parse(await c.req.json());
+
+    // If status is null, delete the record
+    if (status === null) {
+      await db.delete(movies).where(
+        and(
+          eq(movies.imdbId, imdbId),
+          eq(movies.userId, userId),
+        ),
+      );
+      return c.json({ message: "Movie removed successfully" });
+    }
 
     // Get movie details from RapidAPI
     const rapidAPIClient = new RapidAPIClient();
@@ -67,6 +78,7 @@ movie.post("/save", async (c) => {
       .onConflictDoUpdate({
         target: [movies.userId, movies.imdbId],
         set: {
+          status,
           updatedAt: new Date(),
         },
       });
