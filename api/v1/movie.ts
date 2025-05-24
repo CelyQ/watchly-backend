@@ -9,6 +9,7 @@ import type { RapidAPIIMDBSearchResponseDataEntity } from "@/types/rapidapi.type
 import { movies } from "@/db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+
 export const movie = new Hono<AuthContext>();
 
 movie.get("/trending", async (c) => {
@@ -17,38 +18,50 @@ movie.get("/trending", async (c) => {
     const rapidAPIClient = new RapidAPIClient();
 
     const trending = await tmdbClient.getTrendingMovies();
+    console.log("Got trending movies from TMDB:", trending.length);
 
     const movies = (await Promise.all(
       trending.map(async (trend) => {
-        // Try original_title first, then title if original_title fails
-        const result = await rapidAPIClient.imdbSearch(
-          trend.original_title,
-          "MOVIE",
-          trend.id.toString(),
-        ).catch((error) => {
-          console.error(
-            `Error fetching IMDB data for ${trend.original_title}:`,
-            error,
+        try {
+          // Try original_title first, then title if original_title fails
+          const result = await rapidAPIClient.imdbSearch({
+            query: trend.original_title,
+            type: "MOVIE",
+            cacheKey: trend.id.toString(),
+          });
+
+          if (result.length > 0) {
+            console.log(`Found IMDB match for "${trend.original_title}"`);
+            return result[0];
+          }
+
+          // If original_title search failed, try title
+          const titleResult = await rapidAPIClient.imdbSearch({
+            query: trend.title,
+            type: "MOVIE",
+            cacheKey: trend.id.toString(),
+          });
+
+          if (titleResult.length > 0) {
+            console.log(`Found IMDB match for "${trend.title}"`);
+            return titleResult[0];
+          }
+
+          console.log(
+            `No IMDB match found for "${trend.title}" or "${trend.original_title}"`,
           );
           return null;
-        });
-
-        if (result) return result;
-
-        // If original_title search failed, try title
-        return rapidAPIClient.imdbSearch(
-          trend.title,
-          "MOVIE",
-          trend.id.toString(),
-        ).catch((error) => {
-          console.error(`Error fetching IMDB data for ${trend.title}:`, error);
+        } catch (error) {
+          console.error(`Error searching IMDB for "${trend.title}":`, error);
           return null;
-        });
+        }
       }),
     )).filter((movie): movie is NonNullable<typeof movie> => movie !== null);
 
+    console.log("Found IMDB matches for trending movies:", movies.length);
     return c.json({ movies }, 200);
   } catch (error) {
+    console.error("Error in /trending endpoint:", error);
     if (error instanceof Error && error.message === "Rate limit exceeded.") {
       return c.json({ error: "Rate limit exceeded." }, 429);
     }

@@ -17,19 +17,27 @@ export class RapidAPIClient {
 
   /**
    * Search for a movie or series on IMDb using RapidAPI
-   * @param query - The query to search for
-   * @param type - The type of search to perform
-   * @param cacheKey - if provided it will be used to cache the result
+   * @param params - Search parameters
+   * @param params.query - The query to search for
+   * @param params.type - The type of search to perform
+   * @param params.cacheKey - if provided it will be used to cache the result
+   * @param params.count - number of results to return (default: 1)
    * @returns The movie or series data
    */
-  async imdbSearch(
-    query: string,
-    type: "MOVIE" | "TV",
-    cacheKey?: string,
-  ): Promise<RapidAPIIMDBSearchResponseDataEntity | null> {
+  async imdbSearch({
+    query,
+    type,
+    cacheKey,
+    count = 1,
+  }: {
+    query: string;
+    type: "MOVIE" | "TV";
+    cacheKey?: string;
+    count?: number;
+  }): Promise<RapidAPIIMDBSearchResponseDataEntity[]> {
     if (cacheKey) {
       const cache = (await redis.get(`imdb_${type}_search_${cacheKey}`)) as
-        | RapidAPIIMDBSearchResponseDataEntity
+        | RapidAPIIMDBSearchResponseDataEntity[]
         | null
         | undefined;
 
@@ -37,7 +45,7 @@ export class RapidAPIClient {
     }
 
     const url = new URL("https://imdb232.p.rapidapi.com/api/search");
-    url.searchParams.set("count", "1");
+    url.searchParams.set("count", count.toString());
     url.searchParams.set("type", type);
     url.searchParams.set("q", query);
 
@@ -54,24 +62,66 @@ export class RapidAPIClient {
     }
 
     if (!response.ok) {
-      console.error(await response.text());
-      throw new Error("Failed to fetch data from RapidAPI");
+      const errorText = await response.text();
+      console.error("RapidAPI IMDB search error:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        query,
+        type,
+      });
+      return [];
     }
 
-    const { data } = (await response.json()) as RapidAPIIMDBSearchResponseData;
-    const edges = data.mainSearch.edges;
-    const entity = edges?.[0]?.node?.entity;
+    const responseData = await response.json();
+    console.log("IMDB Search Response:", {
+      status: response.status,
+      data: responseData,
+    });
 
-    if (cacheKey && entity) {
+    // Check for API errors
+    if (responseData.errors) {
+      console.error("RapidAPI IMDB search errors:", {
+        errors: responseData.errors,
+        query,
+        type,
+      });
+      return [];
+    }
+
+    const { data } = responseData as RapidAPIIMDBSearchResponseData;
+    if (!data?.mainSearch?.edges) {
+      console.error("Invalid response structure from RapidAPI IMDB search:", {
+        data: responseData,
+        query,
+        type,
+      });
+      return [];
+    }
+
+    const edges = data.mainSearch.edges;
+    const entities = edges?.map((edge) => edge.node.entity).filter((
+      entity,
+    ): entity is RapidAPIIMDBSearchResponseDataEntity => entity !== null) ??
+      [];
+
+    if (cacheKey && entities.length > 0) {
       await redis.set(
         `imdb_${type}_search_${cacheKey}`,
-        JSON.stringify(entity),
+        JSON.stringify(entities),
         {
           ex: 60 * 60 * 24, // 1 day
         },
       );
     }
-    return entity;
+
+    console.log("IMDB Search Results:", {
+      query,
+      type,
+      results: entities.length,
+    });
+
+    return entities;
   }
 
   async imdbSearchByImdbId(imdbId: string) {

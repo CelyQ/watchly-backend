@@ -17,44 +17,55 @@ tv.get("/trending", async (c) => {
     const rapidAPIClient = new RapidAPIClient();
 
     const trending = await tmdbClient.getTrendingTV();
+    console.log("Got trending TV shows from TMDB:", trending.length);
 
     const tvshows = (await Promise.all(
       trending.map(async (trend) => {
-        // Try original_name first, then name if original_name fails
-        const result = await rapidAPIClient.imdbSearch(
-          trend.original_name,
-          "TV",
-          trend.id.toString(),
-        ).catch((error) => {
-          console.error(
-            `Error fetching IMDB data for ${trend.original_name}:`,
-            error,
+        try {
+          // Try original_name first, then name if original_name fails
+          const result = await rapidAPIClient.imdbSearch({
+            query: trend.original_name,
+            type: "TV",
+            cacheKey: trend.id.toString(),
+          });
+
+          console.log({ result });
+
+          if (result.length > 0) {
+            console.log(`Found IMDB match for "${trend.original_name}"`);
+            return result[0];
+          }
+
+          // If original_name search failed, try name
+          const nameResult = await rapidAPIClient.imdbSearch({
+            query: trend.name,
+            type: "TV",
+            cacheKey: trend.id.toString(),
+          });
+
+          if (nameResult.length > 0) {
+            console.log(`Found IMDB match for "${trend.name}"`);
+            return nameResult[0];
+          }
+
+          console.log(
+            `No IMDB match found for "${trend.name}" or "${trend.original_name}"`,
           );
           return null;
-        });
-
-        if (result) return result;
-
-        // If original_name search failed, try name
-        return rapidAPIClient.imdbSearch(
-          trend.name,
-          "TV",
-          trend.id.toString(),
-        ).catch((error) => {
-          console.error(`Error fetching IMDB data for ${trend.name}:`, error);
+        } catch (error) {
+          console.error(`Error searching IMDB for "${trend.name}":`, error);
           return null;
-        });
+        }
       }),
     )).filter((show): show is NonNullable<typeof show> => show !== null);
 
+    console.log("Found IMDB matches for trending TV shows:", tvshows.length);
     return c.json({ tvshows }, 200);
   } catch (error) {
-    console.error(`Error in /trending endpoint: ${error}`);
-
+    console.error("Error in /trending endpoint:", error);
     if (error instanceof Error && error.message === "Rate limit exceeded.") {
       return c.json({ error: "Rate limit exceeded." }, 429);
     }
-
     return c.json({ error: "Internal server error." }, 500);
   }
 });
