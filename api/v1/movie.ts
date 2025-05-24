@@ -18,18 +18,20 @@ movie.get("/trending", async (c) => {
 
     const trending = await tmdbClient.getTrendingMovies();
 
-    const movies = await Promise.all(
+    const movies = (await Promise.all(
       trending.map((trend) => {
         return rapidAPIClient.imdbSearch(
           trend.title,
           "MOVIE",
           trend.id.toString(),
-        );
+        ).catch((error) => {
+          console.error(`Error fetching IMDB data for ${trend.title}:`, error);
+          return null;
+        });
       }),
-    );
+    )).filter((movie): movie is NonNullable<typeof movie> => movie !== null);
 
-    // Return just the list of movies or whatever you want from the data
-    return c.json({ movies });
+    return c.json({ movies }, 200);
   } catch (error) {
     if (error instanceof Error && error.message === "Rate limit exceeded.") {
       return c.json({ error: "Rate limit exceeded." }, 429);
