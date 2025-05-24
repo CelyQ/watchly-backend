@@ -19,7 +19,23 @@ movie.get("/trending", async (c) => {
     const trending = await tmdbClient.getTrendingMovies();
 
     const movies = (await Promise.all(
-      trending.map((trend) => {
+      trending.map(async (trend) => {
+        // Try original_title first, then title if original_title fails
+        const result = await rapidAPIClient.imdbSearch(
+          trend.original_title,
+          "MOVIE",
+          trend.id.toString(),
+        ).catch((error) => {
+          console.error(
+            `Error fetching IMDB data for ${trend.original_title}:`,
+            error,
+          );
+          return null;
+        });
+
+        if (result) return result;
+
+        // If original_title search failed, try title
         return rapidAPIClient.imdbSearch(
           trend.title,
           "MOVIE",

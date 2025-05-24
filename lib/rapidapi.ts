@@ -41,8 +41,6 @@ export class RapidAPIClient {
     url.searchParams.set("type", type);
     url.searchParams.set("q", query);
 
-    console.log({ url: url.toString() });
-
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -64,7 +62,7 @@ export class RapidAPIClient {
     const edges = data.mainSearch.edges;
     const entity = edges?.[0]?.node?.entity;
 
-    if (cacheKey) {
+    if (cacheKey && entity) {
       await redis.set(
         `imdb_${type}_search_${cacheKey}`,
         JSON.stringify(entity),
