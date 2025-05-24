@@ -18,15 +18,21 @@ tv.get("/trending", async (c) => {
 
     const trending = await tmdbClient.getTrendingTV();
 
-    const tvshows = await Promise.all(
+    const tvshows = (await Promise.all(
       trending.map((trend) => {
         return rapidAPIClient.imdbSearch(
           trend.original_name,
           "TV",
           trend.id.toString(),
-        );
+        ).catch((error) => {
+          console.error(
+            `Error fetching IMDB data for ${trend.original_name}:`,
+            error,
+          );
+          return null;
+        });
       }),
-    );
+    )).filter((show): show is NonNullable<typeof show> => show !== null);
 
     return c.json({ tvshows }, 200);
   } catch (error) {
