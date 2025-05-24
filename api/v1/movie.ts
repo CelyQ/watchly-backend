@@ -18,7 +18,6 @@ movie.get("/trending", async (c) => {
     const rapidAPIClient = new RapidAPIClient();
 
     const trending = await tmdbClient.getTrendingMovies();
-    console.log("Got trending movies from TMDB:", trending.length);
 
     const movies = (await Promise.all(
       trending.map(async (trend) => {
@@ -31,7 +30,6 @@ movie.get("/trending", async (c) => {
           });
 
           if (result.length > 0) {
-            console.log(`Found IMDB match for "${trend.original_title}"`);
             return result[0];
           }
 
@@ -43,13 +41,9 @@ movie.get("/trending", async (c) => {
           });
 
           if (titleResult.length > 0) {
-            console.log(`Found IMDB match for "${trend.title}"`);
             return titleResult[0];
           }
 
-          console.log(
-            `No IMDB match found for "${trend.title}" or "${trend.original_title}"`,
-          );
           return null;
         } catch (error) {
           console.error(`Error searching IMDB for "${trend.title}":`, error);
@@ -58,7 +52,6 @@ movie.get("/trending", async (c) => {
       }),
     )).filter((movie): movie is NonNullable<typeof movie> => movie !== null);
 
-    console.log("Found IMDB matches for trending movies:", movies.length);
     return c.json({ movies }, 200);
   } catch (error) {
     console.error("Error in /trending endpoint:", error);

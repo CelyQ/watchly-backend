@@ -29,10 +29,7 @@ tv.get("/trending", async (c) => {
             cacheKey: trend.id.toString(),
           });
 
-          console.log({ result });
-
           if (result.length > 0) {
-            console.log(`Found IMDB match for "${trend.original_name}"`);
             return result[0];
           }
 
@@ -44,13 +41,9 @@ tv.get("/trending", async (c) => {
           });
 
           if (nameResult.length > 0) {
-            console.log(`Found IMDB match for "${trend.name}"`);
             return nameResult[0];
           }
 
-          console.log(
-            `No IMDB match found for "${trend.name}" or "${trend.original_name}"`,
-          );
           return null;
         } catch (error) {
           console.error(`Error searching IMDB for "${trend.name}":`, error);
@@ -59,7 +52,6 @@ tv.get("/trending", async (c) => {
       }),
     )).filter((show): show is NonNullable<typeof show> => show !== null);
 
-    console.log("Found IMDB matches for trending TV shows:", tvshows.length);
     return c.json({ tvshows }, 200);
   } catch (error) {
     console.error("Error in /trending endpoint:", error);
