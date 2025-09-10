@@ -19,40 +19,159 @@ tv.get("/trending", async (c) => {
     const trending = await tmdbClient.getTrendingTV();
     console.log("Got trending TV shows from TMDB:", trending.length);
 
-    const tvshows = (await Promise.all(
+    const normalize = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[:'"()\[\]\-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const tvshows = await Promise.all(
       trending.map(async (trend) => {
         try {
-          // Try original_name first, then name if original_name fails
-          const result = await rapidAPIClient.imdbSearch({
-            query: trend.original_name,
-            type: "TV",
-            cacheKey: trend.id.toString(),
-          });
+          const year = Number.parseInt(
+            (trend.first_air_date || "").slice(0, 4),
+          );
+          const namesToTry = [trend.original_name, trend.name]
+            .filter(Boolean)
+            .map((n) => n as string);
 
-          if (result.length > 0) {
-            return result[0];
+          const baseNames = Array.from(
+            new Set(
+              namesToTry.flatMap((n) => {
+                const colonIdx = n.indexOf(":");
+                const beforeColon = colonIdx !== -1 ? n.slice(0, colonIdx) : n;
+                return [n, beforeColon.trim()].filter(Boolean);
+              }),
+            ),
+          );
+
+          // Gather candidates from a couple of queries (with small result sets)
+          const queryResults: RapidAPIIMDBSearchResponseDataEntity[][] = [];
+          for (let i = 0; i < Math.min(baseNames.length, 2); i++) {
+            const q = baseNames[i];
+            const res = await rapidAPIClient.imdbSearch({
+              query: q,
+              type: "TV",
+              count: 10,
+              cacheKey: `${trend.id}_${i + 1}`,
+            });
+            queryResults.push(res);
+            if (year && res.length === 0) {
+              const withYear = await rapidAPIClient.imdbSearch({
+                query: `${q} ${year}`,
+                type: "TV",
+                count: 10,
+                cacheKey: `${trend.id}_${i + 1}_y`,
+              });
+              queryResults.push(withYear);
+            }
           }
 
-          // If original_name search failed, try name
-          const nameResult = await rapidAPIClient.imdbSearch({
+          const allCandidates = Array.from(
+            new Map(
+              queryResults
+                .flat()
+                .map((e) => [e.id, e] as const),
+            ).values(),
+          );
+
+          const trendNamesNorm = Array.from(new Set(baseNames.map(normalize)));
+
+          const score = (e: RapidAPIIMDBSearchResponseDataEntity) => {
+            const title = normalize(e.titleText.text);
+            const origTitle = normalize(e.originalTitleText.text);
+            const candidateYear = e.releaseYear?.year ?? 0;
+            const isSeries = !!e.titleType?.isSeries;
+
+            let s = 0;
+            if (isSeries) s += 3;
+
+            // Exact title match preference
+            if (trendNamesNorm.some((n) => n === title || n === origTitle)) {
+              s += 6;
+            }
+
+            // Token inclusion and penalty for missing tokens
+            for (const n of trendNamesNorm) {
+              const tokens = n.split(" ");
+              const missing = tokens.filter((t) =>
+                !title.includes(t) && !origTitle.includes(t)
+              );
+              s += tokens.length - missing.length; // reward matches
+              if (missing.length > 0) s -= Math.min(2, missing.length); // slight penalty
+            }
+
+            // Year proximity
+            if (year) {
+              const diff = Math.abs((candidateYear || 0) - year);
+              if (diff === 0) s += 4;
+              else if (diff === 1) s += 2;
+              else if (diff <= 3) s += 1;
+              else s -= 1;
+            }
+
+            return s;
+          };
+
+          if (allCandidates.length > 0) {
+            const best = allCandidates
+              .sort((a, b) => score(b) - score(a))[0];
+            // Normalize primary image aspect ratio to 16:9 to avoid oversized headers/gaps
+            const normalized = best.primaryImage
+              ? {
+                ...best,
+                primaryImage: {
+                  ...best.primaryImage,
+                  width: 1920,
+                  height: 1080,
+                },
+              }
+              : best;
+            return normalized;
+          }
+
+          // As a strict fallback (very rare), try the plain name once more
+          const finalTry = await rapidAPIClient.imdbSearch({
             query: trend.name,
             type: "TV",
-            cacheKey: trend.id.toString(),
+            count: 10,
+            cacheKey: `${trend.id}_final`,
           });
-
-          if (nameResult.length > 0) {
-            return nameResult[0];
+          if (finalTry.length > 0) {
+            const f = finalTry[0];
+            const normalized = f.primaryImage
+              ? {
+                ...f,
+                primaryImage: {
+                  ...f.primaryImage,
+                  width: 1920,
+                  height: 1080,
+                },
+              }
+              : f;
+            return normalized;
           }
 
+          // If absolutely nothing found, return null (should be extremely rare)
           return null;
         } catch (error) {
           console.error(`Error searching IMDB for "${trend.name}":`, error);
           return null;
         }
       }),
-    )).filter((show): show is NonNullable<typeof show> => show !== null);
+    );
 
-    return c.json({ tvshows }, 200);
+    // Preserve original list length; if any nulls slipped through, backfill with first non-null items to keep 20
+    const nonNull = tvshows.filter((
+      s,
+    ): s is RapidAPIIMDBSearchResponseDataEntity => s !== null);
+    const result: RapidAPIIMDBSearchResponseDataEntity[] = [];
+    for (let i = 0; i < trending.length; i++) {
+      result.push(tvshows[i] ?? nonNull[i % Math.max(nonNull.length, 1)]);
+    }
+
+    return c.json({ tvshows: result }, 200);
   } catch (error) {
     console.error("Error in /trending endpoint:", error);
     if (error instanceof Error && error.message === "Rate limit exceeded.") {
