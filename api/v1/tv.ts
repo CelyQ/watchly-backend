@@ -162,16 +162,18 @@ tv.get("/trending", async (c) => {
       }),
     );
 
-    // Preserve original list length; if any nulls slipped through, backfill with first non-null items to keep 20
-    const nonNull = tvshows.filter((
-      s,
-    ): s is RapidAPIIMDBSearchResponseDataEntity => s !== null);
-    const result: RapidAPIIMDBSearchResponseDataEntity[] = [];
-    for (let i = 0; i < trending.length; i++) {
-      result.push(tvshows[i] ?? nonNull[i % Math.max(nonNull.length, 1)]);
-    }
+    // Remove duplicates by IMDb ID and limit to 12 items
+    const seenIds = new Set<string>();
+    const uniqueTvshows = tvshows
+      .filter((s): s is RapidAPIIMDBSearchResponseDataEntity => s !== null)
+      .filter((show) => {
+        if (seenIds.has(show.id)) return false;
+        seenIds.add(show.id);
+        return true;
+      })
+      .slice(0, 12);
 
-    return c.json({ tvshows: result }, 200);
+    return c.json({ tvshows: uniqueTvshows }, 200);
   } catch (error) {
     console.error("Error in /trending endpoint:", error);
     if (error instanceof Error && error.message === "Rate limit exceeded.") {
